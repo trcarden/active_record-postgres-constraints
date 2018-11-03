@@ -7,22 +7,30 @@ module ActiveRecord
           ActiveSupport.on_load(:active_record) do
             AR_CAS = ::ActiveRecord::ConnectionAdapters
 
-            connection = ActiveRecord::Base.connection
-            using_pg = connection.class.to_s == "#{AR_CAS}::PostgreSQLAdapter"
-            if using_pg
-              Rails.logger.info do
-                'Applying Postgres Constraints patches to ActiveRecord'
-              end
-              AR_CAS::TableDefinition.include TableDefinition
-              AR_CAS::PostgreSQLAdapter.include PostgreSQLAdapter
-              AR_CAS::AbstractAdapter::SchemaCreation.prepend SchemaCreation
+            begin
+              connection = ActiveRecord::Base.connection
+              using_pg = connection.class.to_s == "#{AR_CAS}::PostgreSQLAdapter"
+              if using_pg
+                Rails.logger.info do
+                  'Applying Postgres Constraints patches to ActiveRecord'
+                end
+                AR_CAS::TableDefinition.include TableDefinition
+                AR_CAS::PostgreSQLAdapter.include PostgreSQLAdapter
+                AR_CAS::AbstractAdapter::SchemaCreation.prepend SchemaCreation
 
-              ::ActiveRecord::Migration::CommandRecorder.include CommandRecorder
-              ::ActiveRecord::SchemaDumper.prepend SchemaDumper
-            else
+                ::ActiveRecord::Migration::CommandRecorder.include CommandRecorder
+                ::ActiveRecord::SchemaDumper.prepend SchemaDumper
+              else
+                Rails.logger.warn do
+                  'Not applying Postgres Constraints patches to ActiveRecord ' \
+                  'since the database is not postgres'
+                end
+              end
+
+            rescue ActiveRecord::NoDatabaseError
               Rails.logger.warn do
                 'Not applying Postgres Constraints patches to ActiveRecord ' \
-                  'since the database is not postgres'
+                'because the database does not exist'
               end
             end
           end
